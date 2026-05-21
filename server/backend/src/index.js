@@ -1,84 +1,78 @@
-const express = require('express');
-const expressWs = require('express-ws');
-const cors = require('cors');
-const path = require('path');
+const express    = require('express');
+const expressWs  = require('express-ws');
+const cors       = require('cors');
+const path       = require('path');
 const { initDb } = require('./db/database');
-const nodesRouter = require('./routes/nodes');
-const consolesRouter = require('./routes/consoles');
-const gamesRouter = require('./routes/games');
-const sessionsRouter = require('./routes/sessions');
-const { broadcastNodeStatus } = require('./services/nodeManager');
+
+const nodesRouter     = require('./routes/nodes');
+const consolesRouter  = require('./routes/consoles');
+const gamesRouter     = require('./routes/games');
+const sessionsRouter  = require('./routes/sessions');
+const romsRouter      = require('./routes/roms');
+const setupRouter     = require('./routes/setup');
+const { startHealthChecker } = require('./services/nodeManager');
 
 const app = express();
 expressWs(app);
-
 app.use(cors());
 app.use(express.json());
 
-// ── Static UI ──────────────────────────────────────────────────────
-app.use('/ui', express.static(path.join(__dirname, '../public')));
+// ── Static UI ──────────────────────────────────────────
+app.use('/ui', express.static(path.join(__dirname, 'ui')));
 
-// ── API Routes ─────────────────────────────────────────────────────
+// ── Wizard redirect — /setup serves the wizard UI ─────
+app.get('/setup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'ui', 'index.html'));
+});
+
+// ── API ────────────────────────────────────────────────
 app.use('/nodes',    nodesRouter);
 app.use('/consoles', consolesRouter);
 app.use('/games',    gamesRouter);
 app.use('/sessions', sessionsRouter);
+app.use('/roms',     romsRouter);
+app.use('/setup',    setupRouter);
 
-// ── Health ─────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (req, res) => res.json({ ok: true, version: '0.2.0' }));
 
-// ── WebSocket - real-time updates to portal ────────────────────────
-// Nodes and the frontend both connect here
+// ── WebSocket ──────────────────────────────────────────
 const wsClients = new Set();
 
 app.ws('/ws', (ws, req) => {
-  const type = req.query.type || 'portal'; // 'portal' | 'node'
-  ws.type = type;
-  ws.nodeId = req.query.nodeId;
+  ws.type   = req.query.type   || 'portal';
+  ws.nodeId = req.query.nodeId || null;
   wsClients.add(ws);
-
-  console.log(`[ws] ${type} connected${ws.nodeId ? ` (${ws.nodeId})` : ''}`);
 
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw);
       handleWsMessage(ws, msg);
-    } catch (e) {
-      console.error('[ws] bad message:', e.message);
-    }
+    } catch (e) {}
   });
 
   ws.on('close', () => {
     wsClients.delete(ws);
     if (ws.type === 'node' && ws.nodeId) {
-      broadcastToPortals({ type: 'NODE_OFFLINE', nodeId: ws.nodeId });
+      broadcast({ type: 'NODE_OFFLINE', nodeId: ws.nodeId });
     }
   });
 });
 
 function handleWsMessage(ws, msg) {
   switch (msg.type) {
-
-    // Node sends heartbeat every 5s
     case 'HEARTBEAT':
-      broadcastNodeStatus(ws.nodeId, msg.data);
-      broadcastToPortals({ type: 'NODE_STATUS', nodeId: ws.nodeId, data: msg.data });
+      broadcast({ type: 'NODE_STATUS', nodeId: ws.nodeId, data: msg.data });
       break;
-
-    // Node reports stream started
     case 'STREAM_STARTED':
-      broadcastToPortals({ type: 'STREAM_STARTED', ...msg });
+      broadcast({ type: 'STREAM_STARTED', ...msg });
       break;
-
-    // Node reports error
     case 'NODE_ERROR':
-      broadcastToPortals({ type: 'NODE_ERROR', nodeId: ws.nodeId, error: msg.error });
+      broadcast({ type: 'NODE_ERROR', nodeId: ws.nodeId, error: msg.error });
       break;
   }
 }
 
-// Broadcast to all connected portal UIs
-function broadcastToPortals(msg) {
+function broadcast(msg) {
   const data = JSON.stringify(msg);
   for (const client of wsClients) {
     if (client.type === 'portal' && client.readyState === 1) {
@@ -87,19 +81,20 @@ function broadcastToPortals(msg) {
   }
 }
 
-// Make broadcast available to routes
-app.locals.broadcast = broadcastToPortals;
-app.locals.wsClients = wsClients;
+app.locals.broadcast  = broadcast;
+app.locals.wsClients  = wsClients;
 
-// ── Start ──────────────────────────────────────────────────────────
+// ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 
 initDb().then(() => {
+  startHealthChecker();
   app.listen(PORT, () => {
-    console.log(`[consolehub] Backend running on :${PORT}`);
-    console.log(`[consolehub] UI at http://localhost:${PORT}/ui`);
+    console.log(`[cyangame] Backend on :${PORT}`);
+    console.log(`[cyangame] Portal:  http://localhost:${PORT}/ui`);
+    console.log(`[cyangame] Wizard:  http://localhost:${PORT}/setup`);
   });
 }).catch(err => {
-  console.error('[consolehub] Failed to init DB:', err);
+  console.error('[cyangame] DB init failed:', err);
   process.exit(1);
 });

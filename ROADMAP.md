@@ -1,61 +1,54 @@
 # CyanGame Roadmap
 
 ## v0.2 — Current ✅
-Physical streaming · Emulation · ROM library · Setup wizard
+Physical streaming · Emulation (RetroArch/PCSX2/Dolphin) · ROM library · Setup wizard · PS3 WebMAN · Xbox SmartGlass
 
 ## v0.3 — Metadata & Polish
-- [ ] IGDB cover art auto-fetch on game add
-- [ ] Audio support in streams (currently video only)
+- [ ] IGDB cover art auto-fetch
+- [ ] Audio in streams (currently video only)
 - [ ] Mobile-responsive portal
 - [ ] Play history + recently played
 - [ ] Save state management UI
-- [ ] Adaptive bitrate (quality selector in stream viewer)
+- [ ] Adaptive bitrate / quality selector
 
-## v0.4 — Controller Support  
-- [ ] Full USB/IP controller passthrough pipeline
+## v0.4 — Controllers
+- [ ] USB/IP controller passthrough pipeline
 - [ ] Controller mapping UI per console type
-- [ ] Virtual controller for touch screens
-- [ ] Xbox controller button remapping
+- [ ] Virtual touch controller for mobile
 - [ ] Multiple simultaneous controllers
 
 ## v0.5 — Launch Automation
-- [ ] PS4 auto-launch (chiaki-ng integration)  
-- [ ] PS5 auto-launch
+- [ ] PS4/PS5 auto-launch (chiaki-ng)
 - [ ] Switch auto-launch (sys-botbase)
 - [ ] Wake-on-LAN for consoles
-- [ ] Auto-detect capture cards (v4l2 scan on node boot)
-- [ ] HDCP bypass detection + warning
+- [ ] Auto-detect capture cards on node boot
+- [ ] HDCP detection + setup guide
 
 ## v0.6 — Emulation Enhanced
 - [ ] RetroAchievements integration
-- [ ] Cheat codes database (GameShark / Action Replay)
-- [ ] CRT shader support
-- [ ] Rewind support (RetroArch)
+- [ ] Cheat codes (GameShark / Action Replay)
+- [ ] CRT shaders (scanlines, curvature)
+- [ ] Rewind support
 - [ ] Netplay / online multiplayer
 - [ ] BIOS file management UI
-- [ ] Per-game emulator settings
 
 ## v0.7 — Infrastructure
-- [ ] HTTPS / SSL (Let's Encrypt or self-signed)
-- [ ] Tailscale / ZeroTier built-in for remote access
+- [ ] HTTPS / SSL (Let's Encrypt)
+- [ ] Tailscale / ZeroTier built-in remote access
 - [ ] Node health dashboard with graphs
-- [ ] Automatic node discovery (mDNS)
+- [ ] mDNS auto-discovery
 - [ ] Bandwidth monitoring per stream
-- [ ] Email/webhook alerts (node offline, etc.)
+- [ ] Alerts (node offline, stream died)
 
 ## v0.8 — Multi-User
 - [ ] User accounts + login
-- [ ] Per-user game libraries
+- [ ] Per-user libraries
 - [ ] Concurrent session management
 - [ ] Parental controls
-- [ ] Session history per user
 
-## v1.0 — Production
-- [ ] PWA (installable mobile app)
-- [ ] Full IGDB metadata sync (ratings, descriptions, genres)
-- [ ] Game collections / playlists
+## v1.0 — Ship It
+- [ ] PWA / installable mobile app
+- [ ] Full IGDB metadata sync
 - [ ] Clip recording from stream viewer
-- [ ] Screenshot gallery
-- [ ] Full documentation site
-- [ ] Automated test suite
 - [ ] Docker Hub official image
+- [ ] Documentation site

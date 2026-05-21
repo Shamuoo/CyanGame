@@ -1,54 +1,24 @@
-# MediaMTX Configuration
-# Nodes push SRT streams → this routes them to WebRTC for browsers
-
-###############################################################################
-# General
-###############################################################################
 logLevel: info
 logDestinations: [stdout]
-
-# API - backend uses this to manage streams
 api: yes
 apiAddress: :9997
-
-###############################################################################
-# Protocols
-###############################################################################
 protocols: [tcp, udp]
 
-###############################################################################
-# WebRTC - browsers pull streams here
-###############################################################################
 webrtc: yes
 webrtcAddress: :8889
-
-# ICE servers for NAT traversal
 webrtcICEServers2:
   - urls: [stun:stun.l.google.com:19302]
-  - urls: [turn:coturn:3478]
-    username: consolehub
-    password: changeme   # match TURN_PASSWORD in docker-compose
+  - urls: [turn:cyangame-coturn:3478]
+    username: cyangame
+    password: changeme   # updated by setup wizard
 
-###############################################################################
-# SRT - nodes push streams here
-###############################################################################
 srt: yes
 srtAddress: :8890
 
-###############################################################################
-# Stream Paths
-# Each console gets a path like: /console/{node-id}/{console-id}
-# Node pushes to:  srt://nas-ip:8890?streamid=console/wyse1/ps3
-# Browser pulls:   http://nas-ip:8889/console/wyse1/ps3/whep
-###############################################################################
 paths:
-  # Dynamic path pattern - accepts any console stream
   "~^console/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$":
-    # Anyone on LAN can publish (nodes) and read (portal manages auth)
     source: publisher
-    # Record streams optionally (disable to save NAS space)
     record: no
-
-  # Health check path
-  health:
+  "~^emu/(server|node)/.*$":
     source: publisher
+    record: no

@@ -1,7 +1,7 @@
 {
-  "name": "consolehub-backend",
-  "version": "1.0.0",
-  "description": "ConsoleHub - Private game streaming portal backend",
+  "name": "cyangame-backend",
+  "version": "0.2.0",
+  "description": "CyanGame backend API",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -13,7 +13,8 @@
     "express": "^4.18.3",
     "express-ws": "^5.0.2",
     "node-fetch": "^3.3.2",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "yaml": "^2.4.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
