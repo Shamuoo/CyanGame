@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+
+  # ─── Reverse Proxy ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: consolehub-nginx
+    restart: unless-stopped
+    ports:
+      - "7000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - mediamtx
+
+  # ─── Portal Backend ──────────────────────────────────────────────────
+  backend:
+    image: ghcr.io/YOUR_USER/consolehub/backend:latest
+    container_name: consolehub-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DB_PATH=/data/consolehub.db
+      - MEDIAMTX_API=http://mediamtx:9997
+      - JWT_SECRET=${JWT_SECRET:-changeme}
+      - NAS_IP=${NAS_IP:-192.168.1.100}
+      - ROM_ROOT=/roms
+      - NODE_AGENT_PORT=7001
+      - SRT_PORT=8890
+    volumes:
+      - consolehub-db:/data
+      - ${ROM_PATH:-/mnt/user/roms}:/roms:ro   # your NAS ROM folder
+    depends_on:
+      - mediamtx
+
+  # ─── Stream Router ───────────────────────────────────────────────────
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: consolehub-mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554"
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "9997:9997"
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+
+  # ─── STUN/TURN ───────────────────────────────────────────────────────
+  coturn:
+    image: coturn/coturn:alpine
+    container_name: consolehub-coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+    command: >
+      -n --realm=consolehub --fingerprint --lt-cred-mech
+      --user=consolehub:${TURN_PASSWORD:-changeme} --no-stdout-log
+
+  # ─── Emulation Server ────────────────────────────────────────────────
+  # Runs emulators headlessly (Xvfb + RetroArch/PCSX2/Dolphin/etc.)
+  # FFmpeg captures the virtual display and pushes SRT to MediaMTX
+  emulation:
+    build: ./retroarch
+    container_name: consolehub-emulation
+    restart: unless-stopped
+    environment:
+      - DISPLAY=:99
+      - NAS_IP=${NAS_IP:-192.168.1.100}
+      - MEDIAMTX_HOST=mediamtx
+      - SRT_PORT=8890
+    volumes:
+      - ${ROM_PATH:-/mnt/user/roms}:/roms:ro   # same ROM folder
+      - emulation-saves:/saves                   # save states
+      - emulation-config:/config                 # emulator configs
+      - /tmp/.X11-unix:/tmp/.X11-unix            # X display socket
+    devices:
+      # GPU acceleration for faster emulation (optional)
+      # - /dev/dri:/dev/dri
+    ports:
+      - "7002:7002"    # emulation manager API (internal)
+    depends_on:
+      - mediamtx
+    # NOTE: this container needs significant CPU/RAM
+    # Older systems (PS1, SNES) = fine on any NAS
+    # PS2/GameCube = needs decent CPU (4+ cores)
+    # PS3/Switch   = needs powerful CPU (Ryzen/Xeon)
+
+volumes:
+  consolehub-db:
+  emulation-saves:
+  emulation-config:
+
+networks:
+  default:
+    name: consolehub-net

@@ -1,0 +1,26 @@
+# Environment
+.env
+*.env.local
+
+# Node
+node_modules/
+npm-debug.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Data
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.override.yml
