@@ -1,16 +1,3 @@
-version: "3.8"
-
-# ════════════════════════════════════════════════════════
-#  CyanGame — Unraid Server Stack
-#
-#  Setup: open http://YOUR_UNRAID_IP:7000/setup
-#  The wizard configures everything — no .env editing needed.
-#
-#  On Unraid:
-#    cd /mnt/user/appdata/cyangame/server
-#    docker compose up -d
-# ════════════════════════════════════════════════════════
-
 services:
 
   nginx:
@@ -29,7 +16,6 @@ services:
 
   backend:
     build: ./backend
-    image: cyangame-backend:latest
     container_name: cyangame-backend
     restart: unless-stopped
     environment:
@@ -38,11 +24,13 @@ services:
       - DB_PATH=/data/cyangame.db
       - ENV_FILE=/data/.env
       - MEDIAMTX_API=http://cyangame-mediamtx:9997
+      - EMULATION_API=http://cyangame-emulation:7002
       - NODE_AGENT_PORT=7001
       - SRT_PORT=8890
+      - MEDIAMTX_HOST=cyangame-mediamtx
     volumes:
       - /mnt/user/appdata/cyangame/data:/data
-      - /mnt/user/roms:/roms:ro          # adjust if your ROMs are elsewhere
+      - /mnt/user/roms:/roms:ro
     depends_on:
       - mediamtx
     networks:
@@ -53,10 +41,9 @@ services:
     container_name: cyangame-mediamtx
     restart: unless-stopped
     ports:
-      - "8889:8889"      # WebRTC — browsers pull here
-      - "8890:8890/udp"  # SRT    — nodes push here
-      - "8554:8554"      # RTSP   (internal)
-      - "9997:9997"      # API    (internal)
+      - "8889:8889"
+      - "8890:8890/udp"
+      - "9997:9997"
     volumes:
       - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
     networks:
@@ -66,47 +53,29 @@ services:
     image: coturn/coturn:alpine
     container_name: cyangame-coturn
     restart: unless-stopped
-    ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
-    # Turn password is set by the setup wizard and written to /data/.env
-    # Coturn reads it via the command below — update after running wizard
+    network_mode: host
     command: >
       -n --realm=cyangame --fingerprint --lt-cred-mech
-      --user=cyangame:changeme --no-stdout-log
-    networks:
-      - cyangame
+      --user=cyangame:cyangame123 --no-stdout-log
 
   emulation:
-    build:
-      context: ../../retroarch
-      dockerfile: Dockerfile
-    image: cyangame-emulation:latest
+    build: ../retroarch
     container_name: cyangame-emulation
     restart: unless-stopped
     environment:
-      - DISPLAY=:99
       - MEDIAMTX_HOST=cyangame-mediamtx
       - SRT_PORT=8890
     volumes:
       - /mnt/user/roms:/roms:ro
       - /mnt/user/appdata/cyangame/saves:/saves
-      - /mnt/user/appdata/cyangame/emulator-config:/config
-    # Uncomment for NVIDIA GPU (requires Unraid Nvidia plugin):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-    # Uncomment for Intel iGPU:
-    # devices:
-    #   - /dev/dri:/dev/dri
-    depends_on:
-      - mediamtx
+      - /mnt/user/appdata/cyangame/bios:/bios:ro
+    ports:
+      - "7002:7002"
     networks:
       - cyangame
+    # Uncomment for Intel iGPU encode acceleration:
+    # devices:
+    #   - /dev/dri:/dev/dri
 
 networks:
   cyangame:

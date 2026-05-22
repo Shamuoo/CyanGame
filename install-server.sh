@@ -1,16 +1,10 @@
 #!/usr/bin/env bash
-# ============================================================
-#  CyanGame — Server Install
-#  Usage:
-#    curl -fsSL https://raw.githubusercontent.com/Shamuoo/CyanGame/main/install-server.sh | bash
-# ============================================================
+# CyanGame Server Install
+# curl -fsSL https://raw.githubusercontent.com/Shamuoo/CyanGame/main/install-server.sh | bash
 set -euo pipefail
 
-REPO="https://raw.githubusercontent.com/Shamuoo/CyanGame/main"
-INSTALL_DIR="${CYANGAME_DIR:-/mnt/user/appdata/cyangame}"
-PORT="${CYANGAME_PORT:-7000}"
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+INSTALL_DIR="/mnt/user/appdata/cyangame"
+RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 info()    { echo -e "${CYAN}[cyangame]${NC} $*"; }
 success() { echo -e "${GREEN}[✓]${NC} $*"; }
 die()     { echo -e "${RED}[✗]${NC} $*"; exit 1; }
@@ -21,51 +15,37 @@ echo "  ║         CyanGame  Server             ║"
 echo "  ╚══════════════════════════════════════╝"
 echo -e "${NC}"
 
-command -v docker  >/dev/null 2>&1 || die "Docker not found."
-command -v git     >/dev/null 2>&1 || die "git not found."
+command -v docker >/dev/null 2>&1 || die "Docker not found"
+docker compose version >/dev/null 2>&1 || die "Docker Compose not found. Run: mkdir -p /usr/local/lib/docker/cli-plugins && curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose"
 
-if docker compose version >/dev/null 2>&1; then COMPOSE="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then COMPOSE="docker-compose"
-else die "Docker Compose not found."; fi
+command -v git >/dev/null 2>&1 || { apt-get install -y -qq git 2>/dev/null || die "git not found"; }
 
-success "Docker ready"
+info "Setting up CyanGame in $INSTALL_DIR..."
 
-info "Cloning CyanGame into $INSTALL_DIR..."
 if [[ -d "$INSTALL_DIR/.git" ]]; then
-  cd "$INSTALL_DIR" && git pull
-  success "Updated existing install"
+  cd "$INSTALL_DIR" && git pull && success "Updated"
 else
-  git clone https://github.com/Shamuoo/CyanGame.git "$INSTALL_DIR"
-  success "Cloned"
+  git clone https://github.com/Shamuoo/CyanGame.git "$INSTALL_DIR" && success "Cloned"
 fi
 
+mkdir -p "$INSTALL_DIR"/{data,saves,bios,emulator-config}
+
+info "Building and starting containers..."
 cd "$INSTALL_DIR/server"
-
-# Create required directories
-mkdir -p ../data ../saves ../emulator-config ../retroarch nginx mediamtx
-
-# Copy retroarch files if not present
-[[ -f "../retroarch/Dockerfile" ]] || cp -r ../retroarch ./
-
-info "Starting CyanGame..."
-$COMPOSE up -d --build
+docker compose up -d --build
 
 info "Waiting for portal..."
 for i in $(seq 1 30); do
-  if curl -sf "http://localhost:$PORT/api/health" >/dev/null 2>&1; then break; fi
-  sleep 2
+  curl -sf "http://localhost:7000/health" >/dev/null 2>&1 && break || sleep 3
 done
 
 NAS_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-
 echo ""
 echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}${BOLD}║   CyanGame is running!                       ║${NC}"
 echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  Portal:  ${BOLD}http://$NAS_IP:$PORT${NC}"
-echo -e "  Wizard:  ${BOLD}http://$NAS_IP:$PORT/setup${NC}"
+echo -e "  Portal:  ${BOLD}http://$NAS_IP:7000${NC}"
 echo ""
-echo -e "  ${YELLOW}Next: install node agent on each Wyse 3040${NC}"
-echo -e "  ${CYAN}curl -fsSL https://raw.githubusercontent.com/Shamuoo/CyanGame/main/install-node.sh | bash${NC}"
+echo -e "  Open the portal — go to Setup to configure and scan ROMs."
 echo ""

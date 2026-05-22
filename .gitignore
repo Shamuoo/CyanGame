@@ -4,8 +4,4 @@ __pycache__/
 *.pyc
 data/
 *.db
-*.db-shm
-*.db-wal
 .DS_Store
-dist/
-build/

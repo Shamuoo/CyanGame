@@ -2,10 +2,9 @@ const express = require('express');
 const fs      = require('fs');
 const path    = require('path');
 const crypto  = require('crypto');
+const router  = express.Router();
 
-const router = express.Router();
-
-const ENV_PATH = process.env.ENV_FILE || path.join(__dirname, '../../../../../data/.env');
+const ENV_PATH = process.env.ENV_FILE || '/data/.env';
 
 function readEnv() {
   if (!fs.existsSync(ENV_PATH)) return {};
@@ -24,66 +23,36 @@ function writeEnv(values) {
   const merged = { ...readEnv(), ...values };
   const dir = path.dirname(ENV_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const lines = [
-    '# CyanGame Configuration',
-    '# Written by setup wizard',
-    '',
+  fs.writeFileSync(ENV_PATH, [
+    '# CyanGame config — written by setup wizard',
     ...Object.entries(merged).map(([k, v]) => `${k}=${v}`),
-  ];
-  fs.writeFileSync(ENV_PATH, lines.join('\n') + '\n');
+  ].join('\n') + '\n');
 }
 
-// GET /setup/status
 router.get('/status', (req, res) => {
   try {
     const { getDb } = require('../db/database');
     const db = getDb();
-    const nodeCount    = db.prepare('SELECT COUNT(*) as c FROM nodes').get().c;
-    const consoleCount = db.prepare('SELECT COUNT(*) as c FROM consoles').get().c;
-    const env = readEnv();
-    res.json({ firstRun: nodeCount === 0, configured: !!env.NAS_IP, nodeCount, consoleCount });
-  } catch (e) {
-    res.json({ firstRun: true, configured: false });
-  }
+    const romCount = db.prepare('SELECT COUNT(*) as c FROM roms').get().c;
+    res.json({ ok: true, romCount, configured: fs.existsSync(ENV_PATH) });
+  } catch { res.json({ ok: true, romCount: 0, configured: false }); }
 });
 
-// GET /setup/env — safe values only, never secrets
 router.get('/env', (req, res) => {
   const env = readEnv();
-  res.json({
-    nasIp:      env.NAS_IP   || '',
-    romPath:    env.ROM_PATH || '/mnt/user/roms',
-    hasSecrets: !!(env.JWT_SECRET && env.JWT_SECRET.length > 20),
-  });
+  res.json({ nasIp: env.NAS_IP || '', romPath: env.ROM_PATH || '/mnt/user/roms', hasSecrets: !!env.JWT_SECRET });
 });
 
-// POST /setup/configure — write config, auto-gen secrets
 router.post('/configure', (req, res) => {
-  const { nasIp, romPath, regenerateSecrets } = req.body;
+  const { nasIp, romPath } = req.body;
   if (!nasIp) return res.status(400).json({ error: 'nasIp required' });
-
-  const updates = {};
-  updates.NAS_IP   = nasIp;
-  updates.ROM_PATH = romPath || '/mnt/user/roms';
-
+  const updates = { NAS_IP: nasIp, ROM_PATH: romPath || '/mnt/user/roms' };
   const current = readEnv();
-  const needsSecrets = !current.JWT_SECRET || current.JWT_SECRET === 'changeme' || regenerateSecrets;
-  if (needsSecrets) {
-    updates.JWT_SECRET     = crypto.randomBytes(32).toString('hex');
-    updates.TURN_PASSWORD  = crypto.randomBytes(16).toString('hex');
-  }
-
-  try {
-    writeEnv(updates);
-    console.log('[setup] Config saved:', Object.keys(updates).join(', '));
-    res.json({ ok: true, written: Object.keys(updates), needsRestart: needsSecrets });
-  } catch (e) {
-    console.error('[setup] Write failed:', e.message);
-    res.status(500).json({ error: 'Could not write config: ' + e.message });
-  }
+  if (!current.JWT_SECRET) updates.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  writeEnv(updates);
+  res.json({ ok: true });
 });
 
-// GET /setup/detect-ip — server's own LAN IP
 router.get('/detect-ip', (req, res) => {
   const { networkInterfaces } = require('os');
   const nets = networkInterfaces();

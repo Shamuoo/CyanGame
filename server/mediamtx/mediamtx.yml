@@ -8,17 +8,11 @@ webrtc: yes
 webrtcAddress: :8889
 webrtcICEServers2:
   - urls: [stun:stun.l.google.com:19302]
-  - urls: [turn:cyangame-coturn:3478]
-    username: cyangame
-    password: changeme   # updated by setup wizard
 
 srt: yes
 srtAddress: :8890
 
 paths:
-  "~^console/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$":
-    source: publisher
-    record: no
-  "~^emu/(server|node)/.*$":
+  "~.*":
     source: publisher
     record: no
